@@ -198,14 +198,17 @@ def seq_data_iter_random(corpus, batch_size, num_steps):
 
 def seq_data_iter_sequential(corpus, batch_size, num_steps):
     """Generate a minibatch of subsequences using sequential partitioning.
-
+    最终返回的是batch_size*num_steps维度的tensor
     Defined in :numref:`sec_language_model`"""
     # Start with a random offset to partition a sequence
+    # 不同的offset获得不同的序列，但是如果offset超过预定义长度num_steps，其实就重复了
+    # 要不要random.randint(0, num_steps - 1)
     offset = random.randint(0, num_steps)
-    num_tokens = ((len(corpus) - offset - 1) // batch_size) * batch_size
+    # (len(corpus) - offset - 1)因为这里的标签，是移位了一个词元的原始序列。如果不减去这个1，就有可能使得原始序列中的最后一个元素被列进样本中而没有与之对应的标签（数组越界了）。
+    num_tokens = ((len(corpus) - offset - 1) // batch_size) * batch_size  # //为整数除法，向下取整，保证后面恰好取到完整batch
     Xs = torch.tensor(corpus[offset: offset + num_tokens])
     Ys = torch.tensor(corpus[offset + 1: offset + 1 + num_tokens])
-    Xs, Ys = Xs.reshape(batch_size, -1), Ys.reshape(batch_size, -1)
+    Xs, Ys = Xs.reshape(batch_size, -1), Ys.reshape(batch_size, -1)  # -1为自动设定参数，第一维为batchsize，第二维为多少step
     num_batches = Xs.shape[1] // num_steps
     for i in range(0, num_steps * num_batches, num_steps):
         X = Xs[:, i: i + num_steps]
@@ -269,12 +272,12 @@ def count_corpus(tokens):
     # Here `tokens` is a 1D list or 2D list
     if len(tokens) == 0 or isinstance(tokens[0], list):
         # Flatten a list of token lists into a list of tokens
-        tokens = [token for line in tokens for token in line]
-    return collections.Counter(tokens)
+        tokens = [token for line in tokens for token in line]  # 两个for循环从内向外看
+    return collections.Counter(tokens)  # 用于统计某序列中每个元素出现的次数
 
 
 class Vocab:
-    """Vocabulary for text."""
+    """Vocabulary for text.获得文本的词表"""
     def __init__(self, tokens=None, min_freq=0, reserved_tokens=None):
         """Defined in :numref:`sec_text_preprocessing`"""
         if tokens is None:
@@ -283,12 +286,13 @@ class Vocab:
             reserved_tokens = []
         # Sort according to frequencies
         counter = count_corpus(tokens)
-        self._token_freqs = sorted(counter.items(), key=lambda x: x[1],
-                                   reverse=True)
+        # sorted(iterable[,key][,reverse])返回一个排序后的新序列，不改变原始的序列。
+        # 第一个参数interable是可迭代的对象。第二个参数key用来指定一个带参数的函数，该函数会在每个元素排序前被调用
+        self._token_freqs = sorted(counter.items(), key=lambda x: x[1], reverse=True)
         # The index for the unknown token is 0
+        # 很少出现的词元通常被移除，这可以降低复杂性。另外，语料库中不存在或已删除的任何词元都将映射到⼀个特定的未知词元“<unk>”。
         self.idx_to_token = ['<unk>'] + reserved_tokens
-        self.token_to_idx = {token: idx
-                             for idx, token in enumerate(self.idx_to_token)}
+        self.token_to_idx = {token: idx for idx, token in enumerate(self.idx_to_token)}
         for token, freq in self._token_freqs:
             if freq < min_freq:
                 break
@@ -301,7 +305,7 @@ class Vocab:
 
     def __getitem__(self, tokens):
         if not isinstance(tokens, (list, tuple)):
-            return self.token_to_idx.get(tokens, self.unk)
+            return self.token_to_idx.get(tokens, self.unk)  # 如果tokens的键值不存在，则返回self.unk对应的value
         return [self.__getitem__(token) for token in tokens]
 
     def to_tokens(self, indices):
@@ -320,14 +324,14 @@ class Vocab:
 
 def load_corpus_time_machine(max_tokens=-1):
     """Return token indices and the vocabulary of the time machine dataset.
-
+    max_tokens限定了corpus的长度
     Defined in :numref:`sec_text_preprocessing`"""
     lines = read_time_machine()
-    tokens = tokenize(lines, 'char')
-    vocab = Vocab(tokens)
+    tokens = tokenize(lines, 'char')  # 将文本的每一行按字符级别拆解为字母
+    vocab = Vocab(tokens)  # 根据字母频次，从高到低排序，并给予数字标号，并获得二者相互转化字典
     # Since each text line in the time machine dataset is not necessarily a
     # sentence or a paragraph, flatten all the text lines into a single list
-    corpus = [vocab[token] for line in tokens for token in line]
+    corpus = [vocab[token] for line in tokens for token in line]  # 将所有的字母替换为数字标号并展平
     if max_tokens > 0:
         corpus = corpus[:max_tokens]
     return corpus, vocab
