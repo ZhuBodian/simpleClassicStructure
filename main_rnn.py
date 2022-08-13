@@ -126,9 +126,30 @@ def main_my_gru():
     train_rnn(model, train_iter, vocab, lr, num_epochs, device)
 
 
+def main_my_lstm():
+    print('开始训练LSTM'.center(100, '*'))
+
+    batch_size, num_steps = 32, 35
+    train_iter, vocab = utils.load_data_time_machine(batch_size, num_steps)
+
+    vocab_size, num_hiddens, device = len(vocab), 256, utils.try_gpu()
+    num_epochs, lr = 500, 1
+
+    num_inputs = vocab_size
+    lstm_layer = nn.LSTM(num_inputs, num_hiddens)
+    model = my_net.MyRNNModel(lstm_layer, len(vocab))
+    model = model.to(device)
+    train_rnn(model, train_iter, vocab, lr, num_epochs, device)
+
+
+
+
+
 if __name__ == '__main__':
     torch.manual_seed(42)
 
     # main_my_rnn()
-    main_my_gru()
+    # main_my_gru()
+    main_my_lstm()
+
 
