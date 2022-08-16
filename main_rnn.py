@@ -142,7 +142,22 @@ def main_my_lstm():
     train_rnn(model, train_iter, vocab, lr, num_epochs, device)
 
 
+def main_deep_rnn():
+    print('开始训练DEEP RNN'.center(100, '*'))
 
+    batch_size, num_steps = 32, 35
+    train_iter, vocab = utils.load_data_time_machine(batch_size, num_steps)
+
+    vocab_size, num_hiddens, num_layers = len(vocab), 256, 2
+    num_epochs, lr = 500, 2
+    num_inputs = vocab_size
+    device = utils.try_gpu()
+
+    lstm_layer = nn.LSTM(num_inputs, num_hiddens, num_layers)
+    model = my_net.MyRNNModel(lstm_layer, len(vocab))
+    model = model.to(device)
+
+    train_rnn(model, train_iter, vocab, lr, num_epochs, device)
 
 
 if __name__ == '__main__':
@@ -150,6 +165,8 @@ if __name__ == '__main__':
 
     # main_my_rnn()
     # main_my_gru()
-    main_my_lstm()
+    # main_my_lstm()
+    main_deep_rnn()
+
 
 
